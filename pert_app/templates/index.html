@@ -1,0 +1,170 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Générateur de Diagramme PERT</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://unpkg.com/cytoscape@3.26.0/dist/cytoscape.min.js"></script>
+    <script src="https://unpkg.com/cytoscape-dagre@2.5.0/cytoscape-dagre.js"></script>
+    <script src="https://unpkg.com/dagre@0.8.5/dist/dagre.min.js"></script>
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <div class="header-content">
+                <h1>Générateur de Diagramme PERT</h1>
+                <div class="btn-group">
+                    <button id="resetBtn" class="btn btn-secondary">Réinitialiser</button>
+                    <button id="exportBtn" class="btn btn-primary">Exporter</button>
+                </div>
+            </div>
+        </div>
+    </header>
+    
+    <div class="container">
+        <div class="project-controls">
+            <div class="form-group compact">
+                <label for="t0">Date de début (T₀)</label>
+                <input type="number" id="t0" value="1" min="0">
+            </div>
+            <div class="form-group compact">
+                <label for="tf">Date de fin (Tf)</label>
+                <input type="number" id="tf" value="24" min="1">
+            </div>
+            <div class="form-group compact">
+                <button id="applyDatesBtn" class="btn btn-primary">Appliquer</button>
+            </div>
+        </div>
+        
+        <div class="tabs">
+            <div class="tab active" data-tab="tasks">Tâches</div>
+            <div class="tab" data-tab="results">Résultats</div>
+            <div class="tab" data-tab="diagram">Diagramme</div>
+        </div>
+        
+        <div id="tasks" class="tab-content active">
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">Ajouter une tâche</div>
+                </div>
+                <form id="taskForm">
+                    <div class="form-row">
+                        <div class="form-group compact">
+                            <label for="taskId">Code</label>
+                            <input type="text" id="taskId" required maxlength="3">
+                        </div>
+                        <div class="form-group compact">
+                            <label for="taskDuration">Durée</label>
+                            <input type="number" id="taskDuration" min="1" required>
+                        </div>
+                    </div>
+                    <div class="form-group compact">
+                        <label for="taskName">Nom de la tâche</label>
+                        <input type="text" id="taskName" required>
+                    </div>
+                    <div class="form-group compact">
+                        <label for="taskPredecessors">Prédécesseurs (séparés par des virgules)</label>
+                        <input type="text" id="taskPredecessors" placeholder="Ex: A,B">
+                    </div>
+                    <div class="btn-group">
+                        <button type="submit" class="btn btn-primary">Ajouter</button>
+                        <button type="button" id="clearFormBtn" class="btn btn-secondary">Effacer</button>
+                    </div>
+                </form>
+            </div>
+            
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">Liste des tâches</div>
+                    <span class="task-count" id="taskCount">0 tâches</span>
+                </div>
+                <div class="table-container">
+                    <table id="tasksTable">
+                        <thead>
+                            <tr>
+                                <th>Code</th>
+                                <th>Nom</th>
+                                <th>Durée</th>
+                                <th>Prédécesseurs</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tasksTableBody">
+                            <!-- Les tâches seront ajoutées ici dynamiquement -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <div id="results" class="tab-content">
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">Résultats PERT</div>
+                </div>
+                <div class="table-container">
+                    <table id="pertResultsTable">
+                        <thead>
+                            <tr>
+                                <th>Tâche</th>
+                                <th>Durée</th>
+                                <th>Début + tôt</th>
+                                <th>Fin + tôt</th>
+                                <th>Début + tard</th>
+                                <th>Fin + tard</th>
+                                <th>Marge totale</th>
+                                <th>Marge libre</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pertResultsBody">
+                            <!-- Les résultats PERT seront ajoutés ici dynamiquement -->
+                        </tbody>
+                    </table>
+                </div>
+                <div class="project-info">
+                    <div class="info-item">
+                        <span class="info-label">Début (T₀)</span>
+                        <span class="info-value" id="displayT0">1</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Fin (Tf)</span>
+                        <span class="info-value" id="displayTf">24</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Durée totale</span>
+                        <span class="info-value" id="totalDuration">0</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Chemin critique</span>
+                        <span class="info-value critical-path" id="criticalPath">-</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="diagram" class="tab-content">
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">Diagramme PERT</div>
+                </div>
+                <div class="chart-container" id="pertChartContainer">
+                    <div id="pertChart">
+                        <!-- Le diagramme SVG sera généré ici dynamiquement -->
+                    </div>
+                </div>
+                <div class="export-options">
+                    <button id="exportPNGBtn" class="btn btn-primary ">PNG</button>
+                    <button id="exportPDFBtn" class="btn btn-primary">PDF</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="{% static 'js/app.js' %}"></script>
+</body>
+</html>
