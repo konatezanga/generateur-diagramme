@@ -27,8 +27,10 @@ const taskCount = document.getElementById('taskCount');
 document.addEventListener('DOMContentLoaded', function() {
     console.log('Application PERT initialisée');
     
-    // Initialisation
-    tfInput.value = ''; 
+    // Initialisation - T0 a une valeur par défaut de 1, Tf est vide
+    t0Input.value = '1'; // Valeur par défaut pour T0
+    tfInput.value = '';  // Tf reste vide
+    displayT0.textContent = '1';
     displayTf.textContent = '?'; 
     updateTasksTable();
     calculerPERT();
@@ -117,9 +119,6 @@ function ajouterTache() {
         alert('Une tâche avec ce code existe déjà.');
         return;
     }
-    
-    // SUPPRIMÉ: Vérification des prédécesseurs existants
-    // Les prédécesseurs peuvent être ajoutés même s'ils n'existent pas encore
     
     // Ajouter la tâche
     taches.push({
@@ -234,9 +233,6 @@ function mettreAJourTache(idTache) {
             .map(p => p.trim().toUpperCase())
             .filter(p => p !== '');
         
-        // SUPPRIMÉ: Vérification des prédécesseurs existants
-        // Les prédécesseurs peuvent être ajoutés même s'ils n'existent pas encore
-        
         // Mettre à jour la tâche
         taches[indexTache].nom = nomTache;
         taches[indexTache].duree = dureeTache;
@@ -278,9 +274,6 @@ function annulerModification() {
 // Supprimer une tâche
 function supprimerTache(idTache) {
     if (confirm(`Êtes-vous sûr de vouloir supprimer la tâche ${idTache} ?`)) {
-        // SUPPRIMÉ: Vérification si la tâche est un prédécesseur
-        // On peut supprimer même si c'est un prédécesseur
-        
         // Supprimer la tâche
         taches = taches.filter(tache => tache.id !== idTache);
         
@@ -298,11 +291,16 @@ function supprimerTache(idTache) {
 
 // Appliquer les dates T0 et Tf
 function appliquerDates() {
-    const t0 = parseInt(t0Input.value);
+    let t0 = parseInt(t0Input.value);
     let tf = parseInt(tfInput.value);
     
-    // Validation de T0
-    if (isNaN(t0) || t0 < 0) {
+    // Validation de T0 - si vide, utiliser la valeur par défaut 1
+    if (isNaN(t0) || t0Input.value.trim() === '') {
+        t0 = 1; // Valeur par défaut
+        t0Input.value = '1'; // Mettre à jour l'input
+    }
+    
+    if (t0 < 0) {
         alert('La date T0 doit être un nombre valide (≥ 0).');
         return;
     }
@@ -669,6 +667,8 @@ function genererDiagrammePERT() {
     cyContainer.style.width = '100%';
     cyContainer.style.height = '600px';
     cyContainer.style.border = '1px solid #ddd';
+    cyContainer.style.borderRadius = '8px';
+    cyContainer.style.background = '#f8fafc';
     container.appendChild(cyContainer);
 
     // Préparer les données pour Cytoscape
@@ -719,14 +719,14 @@ function genererDiagrammePERT() {
                 style: {
                     'background-color': '#3b82f6',
                     'label': 'data(label)',
-                    'width': 40,
-                    'height': 40,
+                    'width': 50,
+                    'height': 50,
                     'color': '#fff',
                     'text-valign': 'center',
                     'text-halign': 'center',
                     'font-weight': 'bold',
-                    'font-size': '14px',
-                    'border-width': 2,
+                    'font-size': '16px',
+                    'border-width': 3,
                     'border-color': '#1e40af'
                 }
             },
@@ -766,27 +766,6 @@ function genererDiagrammePERT() {
         }
     });
 
-    // Ajouter des tooltips
-    cy.on('mouseover', 'node', function(evt) {
-        const node = evt.target;
-        const tache = taches.find(t => t.id === node.data('id'));
-        
-        if (tache) {
-            const tooltip = `
-                <div class="tooltip-content">
-                    <strong>${tache.id}: ${tache.nom}</strong><br>
-                    Durée: ${tache.duree} jours<br>
-                    Début: ${tache.debutTot || '?'}<br>
-                    Fin: ${tache.finTot || '?'}<br>
-                    ${cheminCritique.includes(tache.id) ? '⭐ Chemin critique' : ''}
-                </div>
-            `;
-            
-            // Afficher le tooltip (vous pouvez utiliser une librairie de tooltips ou un custom)
-            console.log(tooltip); // Pour debug
-        }
-    });
-
     // Ajuster le zoom pour voir tout le graphe
     cy.fit();
     cy.center();
@@ -802,19 +781,13 @@ function exporterDiagramme(format) {
     }
 
     if (format === 'PNG') {
-        // Utiliser la fonction d'export de Cytoscape
-        const cy = cytoscape({ container: cyContainer });
-        const pngContent = cy.png({
-            output: 'blob',
-            full: true,
-            scale: 2,
-            bg: 'white'
+        // Utiliser html2canvas pour capturer le conteneur
+        html2canvas(cyContainer).then(canvas => {
+            const link = document.createElement('a');
+            link.download = 'diagramme-pert.png';
+            link.href = canvas.toDataURL('image/png');
+            link.click();
         });
-        
-        const link = document.createElement('a');
-        link.download = 'diagramme-pert.png';
-        link.href = URL.createObjectURL(pngContent);
-        link.click();
     } else if (format === 'PDF') {
         html2canvas(cyContainer).then(canvas => {
             const pdf = new jspdf.jsPDF('landscape');
@@ -875,7 +848,7 @@ function reinitialiserProjet() {
     updateTasksTable();
     mettreAJourResultatsPERT();
     
-    t0Input.value = 1;
+    t0Input.value = '1'; // Remettre la valeur par défaut
     tfInput.value = ''; // Laisser vide
     displayT0.textContent = '1';
     displayTf.textContent = '?'; // Remettre "?" 

@@ -124,7 +124,7 @@ STATICFILES_DIRS = [os.path.join(BASE_DIR, 'pert_app/static')]
 STATIC_URL = 'static/'
 STATICFILES_DIRS = [BASE_DIR / 'pert_app'/ 'static']
 
-ALLOWED_HOSTS = ["generateur-diagramme.onrender.com"]
+ALLOWED_HOSTS = ["generateur-diagramme.onrender.com", "onrender.com", '127.0.0.1', 'localhost']
 
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
