@@ -381,6 +381,45 @@ footer {
     background-color: #ef4444;
 }
 
+/* Styles pour le conteneur du diagramme */
+#pertChart {
+    width: 100%;
+    position: relative;
+    margin-bottom: 20px;
+}
+
+.chart-container {
+    width: 100%;
+    overflow: hidden;
+    border-radius: 8px;
+}
+
+.export-options {
+    margin-top: 15px;
+    text-align: center;
+    padding: 10px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #dee2e6;
+}
+
+.export-options .btn {
+    margin: 0 5px;
+}
+
+.no-data {
+    text-align: center;
+    padding: 40px;
+    color: #6c757d;
+    font-style: italic;
+}
+
+/* Assure que le réseau reste dans ses limites */
+#network {
+    max-width: 100%;
+    max-height: 500px;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     .container {

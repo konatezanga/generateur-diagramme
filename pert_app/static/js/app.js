@@ -651,7 +651,7 @@ function mettreAJourResultatsPERT() {
     });
 }
 
-// Générer le diagramme PERT avec Cytoscape.js
+// Générer le diagramme PERT avec vis-network
 function genererDiagrammePERT() {
     const container = document.getElementById('pertChart');
     container.innerHTML = '';
@@ -661,32 +661,48 @@ function genererDiagrammePERT() {
         return;
     }
 
-    // Créer le conteneur pour Cytoscape
-    const cyContainer = document.createElement('div');
-    cyContainer.id = 'cy';
-    cyContainer.style.width = '100%';
-    cyContainer.style.height = '600px';
-    cyContainer.style.border = '1px solid #ddd';
-    cyContainer.style.borderRadius = '8px';
-    cyContainer.style.background = '#f8fafc';
-    container.appendChild(cyContainer);
+    // Créer le conteneur pour vis-network avec des dimensions flexibles
+    const networkContainer = document.createElement('div');
+    networkContainer.id = 'network';
+    networkContainer.style.width = '100%';
+    networkContainer.style.height = '500px'; // Réduit la hauteur pour laisser de la place aux boutons
+    networkContainer.style.minHeight = '400px';
+    networkContainer.style.border = '1px solid #ddd';
+    networkContainer.style.borderRadius = '8px';
+    networkContainer.style.background = '#f8fafc';
+    networkContainer.style.overflow = 'hidden'; // Empêche tout débordement
+    container.appendChild(networkContainer);
 
-    // Préparer les données pour Cytoscape
-    const elements = [];
+    // Préparer les données pour vis-network
+    const nodes = [];
+    const edges = [];
     
     // Ajouter les nœuds (tâches)
     taches.forEach(tache => {
         const estCritique = cheminCritique.includes(tache.id);
         
-        elements.push({
-            data: {
-                id: tache.id,
-                label: tache.id,
-                duree: tache.duree,
-                critique: estCritique,
-                debutTot: tache.debutTot,
-                finTot: tache.finTot
-            }
+        nodes.push({
+            id: tache.id,
+            label: `${tache.id}\n${tache.duree}j`,
+            color: estCritique ? {
+                background: '#ef4444',
+                border: '#dc2626',
+                highlight: { background: '#f87171', border: '#dc2626' }
+            } : {
+                background: '#3b82f6',
+                border: '#1e40af',
+                highlight: { background: '#60a5fa', border: '#1e40af' }
+            },
+            font: { 
+                color: 'white', 
+                size: 14, // Taille réduite pour mieux s'adapter
+                face: 'Arial', 
+                bold: true 
+            },
+            shape: 'box',
+            margin: 8,
+            widthConstraint: { minimum: 70, maximum: 90 }, // Taille réduite des nœuds
+            heightConstraint: { minimum: 50, maximum: 70 }
         });
     });
     
@@ -697,99 +713,112 @@ function genererDiagrammePERT() {
             if (taches.some(t => t.id === predId)) {
                 const estCritique = cheminCritique.includes(predId) && cheminCritique.includes(tache.id);
                 
-                elements.push({
-                    data: {
-                        id: `${predId}-${tache.id}`,
-                        source: predId,
-                        target: tache.id,
-                        critique: estCritique
-                    }
+                edges.push({
+                    id: `${predId}-${tache.id}`,
+                    from: predId,
+                    to: tache.id,
+                    color: estCritique ? { color: '#ef4444', width: 3 } : { color: '#3b82f6', width: 2 },
+                    arrows: 'to',
+                    smooth: { enabled: true, type: 'cubicBezier', roundness: 0.3 }
                 });
             }
         });
     });
 
-    // Initialiser Cytoscape
-    const cy = cytoscape({
-        container: document.getElementById('cy'),
-        elements: elements,
-        style: [
-            {
-                selector: 'node',
-                style: {
-                    'background-color': '#3b82f6',
-                    'label': 'data(label)',
-                    'width': 50,
-                    'height': 50,
-                    'color': '#fff',
-                    'text-valign': 'center',
-                    'text-halign': 'center',
-                    'font-weight': 'bold',
-                    'font-size': '16px',
-                    'border-width': 3,
-                    'border-color': '#1e40af'
-                }
-            },
-            {
-                selector: 'node[critique = true]',
-                style: {
-                    'background-color': '#ef4444',
-                    'border-color': '#dc2626'
-                }
-            },
-            {
-                selector: 'edge',
-                style: {
-                    'width': 2,
-                    'line-color': '#3b82f6',
-                    'target-arrow-color': '#3b82f6',
-                    'target-arrow-shape': 'triangle',
-                    'curve-style': 'bezier',
-                    'arrow-scale': 1.2
-                }
-            },
-            {
-                selector: 'edge[critique = true]',
-                style: {
-                    'line-color': '#ef4444',
-                    'target-arrow-color': '#ef4444',
-                    'width': 3
-                }
-            }
-        ],
+    // Configuration optimisée pour l'espace disponible
+    const options = {
         layout: {
-            name: 'dagre',
-            rankDir: 'LR', // De gauche à droite
-            nodeSep: 100,
-            rankSep: 150,
-            spacingFactor: 1.2
+            hierarchical: {
+                enabled: true,
+                direction: 'LR', // De gauche à droite
+                sortMethod: 'directed',
+                nodeSpacing: 120, // Espacement réduit entre les nœuds
+                levelSeparation: 150, // Séparation réduite entre les niveaux
+                shakeTowards: 'leaves'
+            }
+        },
+        physics: {
+            enabled: false // Layout statique pour éviter les mouvements
+        },
+        interaction: {
+            dragNodes: true,
+            dragView: true,
+            zoomView: true,
+            zoomSpeed: 0.5 // Vitesse de zoom réduite pour plus de contrôle
+        },
+        nodes: {
+            shape: 'box',
+            shadow: false, // Ombre désactivée pour un rendu plus net
+            margin: 10,
+            font: {
+                multi: true
+            }
+        },
+        edges: {
+            smooth: {
+                enabled: true,
+                type: 'cubicBezier',
+                roundness: 0.2
+            },
+            shadow: false
+        },
+        configure: {
+            enabled: false // Désactive le panneau de configuration
         }
+    };
+
+    // Créer le réseau
+    const data = {
+        nodes: nodes,
+        edges: edges
+    };
+    
+    const network = new vis.Network(networkContainer, data, options);
+
+    // Ajustement automatique pour s'adapter au conteneur
+    network.on('afterDrawing', function() {
+        // Ajuste la vue pour que tout soit visible sans débordement
+        network.fit({
+            animation: {
+                duration: 500,
+                easingFunction: 'easeInOutQuad'
+            }
+        });
+        
+        // Applique un léger zoom arrière pour avoir une marge
+        network.moveTo({
+            scale: 0.9, // Zoom à 90% pour avoir des marges
+            animation: {
+                duration: 300,
+                easingFunction: 'easeInOutQuad'
+            }
+        });
     });
 
-    // Ajuster le zoom pour voir tout le graphe
-    cy.fit();
-    cy.center();
+    // Redimensionner automatiquement quand la fenêtre change de taille
+    window.addEventListener('resize', function() {
+        network.redraw();
+        network.fit();
+    });
 }
 
-// Mettre à jour l'export du diagramme pour Cytoscape
 function exporterDiagramme(format) {
-    const cyContainer = document.getElementById('cy');
+    const networkContainer = document.getElementById('network');
     
-    if (!cyContainer || taches.length === 0) {
+    if (!networkContainer || taches.length === 0) {
         alert('Aucun diagramme à exporter. Génerez d\'abord un diagramme en ajoutant des tâches.');
         return;
     }
 
     if (format === 'PNG') {
-        // Utiliser html2canvas pour capturer le conteneur
-        html2canvas(cyContainer).then(canvas => {
+        html2canvas(networkContainer).then(canvas => {
             const link = document.createElement('a');
             link.download = 'diagramme-pert.png';
             link.href = canvas.toDataURL('image/png');
             link.click();
         });
     } else if (format === 'PDF') {
-        html2canvas(cyContainer).then(canvas => {
+        html2canvas(networkContainer).then(canvas => {
             const pdf = new jspdf.jsPDF('landscape');
             const imgData = canvas.toDataURL('image/png');
             const imgWidth = pdf.internal.pageSize.getWidth();
