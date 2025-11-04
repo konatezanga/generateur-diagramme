@@ -915,5 +915,5 @@ function afficherAlerte(message, type) {
         if (alerte.parentNode) {
             alerte.parentNode.removeChild(alerte);
         }
-    }, 5000);
+    }, 1000);
 }
